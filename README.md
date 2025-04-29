@@ -58,6 +58,11 @@ Death is permanent — health does not regenerate unless you heal.
 This project is open-source and released under the MIT License.
 Feel free to modify, share, or fork it!
 
+**App Icon**: AI-generated with assistance from OpenAI's ChatGPT. Free to use and distribute under the same license as this project.
+
+This project was developed with the assistance of OpenAI's ChatGPT.
+
+
 # ❤️ Contributing
 If you find a bug or have an idea, feel free to open an issue.
 
