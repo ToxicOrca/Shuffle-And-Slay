@@ -45,8 +45,10 @@ Death is permanent — health does not regenerate unless you heal.
 # 🛠️ Installation
 1. Clone this repository
 2. Install dependencies: `pip install -r requirements.txt`
-3. Set your Discord bot token in the code: `bot.run("YOUR_BOT_TOKEN")`
-4. Run the bot: `python shuffle_and_slay.py`
+3. Create Discord text channel named `shuffle-and-slay`
+4. Set your Discord bot token in the code: `bot.run("YOUR_BOT_TOKEN")`
+5. Invite your bot to your server.
+6. Run the bot: `python shuffle_and_slay.py`
 
 # 🔧 Requirements
 - Python 3.10+
