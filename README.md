@@ -23,6 +23,8 @@ Strategically choose whether to fight with fists, use a weapon, equip new weapon
 
 Each action is triggered via buttons — no typing needed once the game starts!
 
+![Banner](https://i.postimg.cc/qv5PS92Y/Play-Screen.png)
+
 # 📋 Game Rules
 Use **!rules** to view the rules the #shuffle-and-slay channel.
 
