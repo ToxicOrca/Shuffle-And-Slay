@@ -15,7 +15,6 @@ suit_emojis = {
     'Hearts': '♥️',
     'Diamonds': '♦️'
 }
-
 # Define the valid cards for each suit
 # Deck has 43 cards, no red jack up face cards, no Jokers
 valid_cards = {
@@ -24,7 +23,6 @@ valid_cards = {
     'Hearts': ['2', '3', '4', '5', '6', '7', '8', '9', '10'],
     'Diamonds': ['2', '3', '4', '5', '6', '7', '8', '9', '10']
 }
-
 # Deck has 43 cards, no red jack up face cards, no Jokers
 # Create deck (full deck with suits and values)
 def create_deck():
@@ -64,13 +62,20 @@ class EquipButton(discord.ui.Button):
 
         # Get the card that this button represents
         if self.index >= len(player_data[user_id]['dungeon']):
-            await interaction.response.send_message("❌ That card is no longer available!", ephemeral=True, delete_after=4)
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("❌ That card is no longer available!", ephemeral=True, delete_after=4)
+            else:
+                await interaction.response.defer()   
             return
         
+        # REMOVED AS IT WAS BAD
         # New check: Prevent actions when only 1 card is left
-        if len(player_data[user_id]['dungeon']) <= 1:
-            await interaction.response.send_message("❌ You only have 1 card left — you must DEAL before acting!", ephemeral=True, delete_after=4)
-            return
+#        if len(player_data[user_id]['dungeon']) <= 1:
+#            if not player_data[user_id].get('has_played_before', False):
+#                await interaction.response.send_message("❌ You only have 1 card left — you must DEAL before acting!", ephemeral=True, delete_after=4)
+#            else:
+#                await interaction.response.defer() 
+#            return
 
         
         card_value, suit = player_data[user_id]['dungeon'][self.index]
@@ -78,11 +83,14 @@ class EquipButton(discord.ui.Button):
         # --- POTION Mode ---
         if player_data[user_id]['attack_mode'] == "potion":
             if suit != 'Hearts':
-                await interaction.response.send_message(
-                    "❌ You can only use Hearts (♥️) as potions!",
-                    ephemeral=True,
-                    delete_after=4
-                )
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.response.send_message(
+                        "❌ You can only use Hearts (♥️) as potions!",
+                        ephemeral=True,
+                        delete_after=4
+                    )
+                else:
+                    await interaction.response.defer()    
                 return
 
             if player_data[user_id].get('potion_used', False):
@@ -91,10 +99,13 @@ class EquipButton(discord.ui.Button):
                 player_data[user_id]['attack_mode'] = None
                 await view.update_display(interaction)
                 
-                await interaction.followup.send(
-                    f"💔 You discarded {card_name(card_value)} {suit_emojis[suit]} (already used your potion!)",
-                    ephemeral=True
-                )
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.followup.send(
+                        f"💔 You discarded {card_name(card_value)} {suit_emojis[suit]} (already used your potion!)",
+                        ephemeral=True
+                    )
+                else:
+                    await interaction.response.defer()    
                 return
 
             # First time using a potion
@@ -109,12 +120,15 @@ class EquipButton(discord.ui.Button):
             player_data[user_id]['attack_mode'] = None
 
             await view.update_display(interaction)
-
-            await interaction.response.send_message(
-                f"💖 You used a Potion and healed {heal_amount} health!",
-                ephemeral=True,
-                delete_after=4
-            )
+            
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    f"💖 You used a Potion and healed {heal_amount} health!",
+                    ephemeral=True,
+                    delete_after=4
+                )
+            else:
+                await interaction.response.defer()
             return
 
 
@@ -134,17 +148,24 @@ class EquipButton(discord.ui.Button):
             player_data[user_id]['attack_mode'] = None
 
             await view.update_display(interaction)
-            await interaction.followup.send(f"👊 You punched and took {damage} damage!", ephemeral=True, delete_after=4)
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.followup.send(f"👊 You punched and took {damage} damage!", ephemeral=True, delete_after=4)
+            else:
+                await interaction.response.defer()    
             return
 
         
+        # --- WEAPON Mode ---
         # --- WEAPON Mode ---
         elif player_data[user_id]['attack_mode'] == "weapon":
             weapon_power = player_data[user_id]['current_weapon_power']
             last_kill = player_data[user_id]['last_kill']
 
             if weapon_power is None:
-                await interaction.response.send_message("❌ You have no weapon equipped!", ephemeral=True)
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.response.send_message("❌ You have no weapon equipped!", ephemeral=True)
+                else:
+                    await interaction.response.defer()    
                 return
 
             card_number = int(card_value) if card_value.isdigit() else {'Jack': 11, 'Queen': 12, 'King': 13, 'Ace': 14}[card_name(card_value)]
@@ -154,24 +175,36 @@ class EquipButton(discord.ui.Button):
                 last_kill_value = int(last_kill[0]) if last_kill[0].isdigit() else {'Jack': 11, 'Queen': 12, 'King': 13, 'Ace': 14}[card_name(last_kill[0])]
                 
                 if card_number >= last_kill_value:
-                    await interaction.response.send_message(
-                        "❌ Your weapon is too weak to attack this monster! Use your fists instead!",
-                        ephemeral=True,
-                        delete_after=4
-                    )
+                    if not player_data[user_id].get('has_played_before', False):
+                        await interaction.response.send_message(
+                            "❌ Your weapon is too weak to attack this monster! Use your fists instead!",
+                            ephemeral=True,
+                            delete_after=4
+                        )
+                    else:
+                        await interaction.response.defer()
                     return  # IMPORTANT: cannot continue if too strong
 
             # --- Normal allowed weapon attack ---
             if weapon_power >= card_number:
-                await interaction.response.send_message(f"⚔️ You defeated the {card_name(card_value)}!", ephemeral=True, delete_after=4)
-                player_data[user_id]['current_weapon_power'] = card_number  # Drop to new lower strength
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.response.send_message(f"⚔️ You defeated the {card_name(card_value)}!", ephemeral=True, delete_after=4)
+                else:
+                    await interaction.response.defer()
+                    
+                player_data[user_id]['current_weapon_power'] = card_number
                 if suit in ['Spades', 'Clubs']:
                     player_data[user_id]['last_kill'] = (card_value, suit)
+
             else:
                 damage = card_number - weapon_power
                 player_data[user_id]['health'] = max(0, player_data[user_id]['health'] - damage)
-                await interaction.response.send_message(f"🩸 You attacked {card_name(card_value)} and took {damage} damage!", ephemeral=True, delete_after=4)
-                # Weapon stays the same power after taking damage (DO NOT upgrade it!)
+                
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.response.send_message(f"🩸 You attacked {card_name(card_value)} and took {damage} damage!", ephemeral=True, delete_after=4)
+                else:
+                    await interaction.response.defer()
+                
                 if suit in ['Spades', 'Clubs']:
                     player_data[user_id]['last_kill'] = (card_value, suit)
 
@@ -186,7 +219,10 @@ class EquipButton(discord.ui.Button):
         # --- EQUIP Mode ---
         elif player_data[user_id]['attack_mode'] == "equip":
             if suit != 'Diamonds':
-                await interaction.response.send_message("❌ You can only equip Diamonds as weapons!", ephemeral=True, delete_after=4)
+                if not player_data[user_id].get('has_played_before', False):
+                    await interaction.response.send_message("❌ You can only equip Diamonds as weapons!", ephemeral=True, delete_after=4)
+                else:
+                    await interaction.response.defer()    
                 return
 
             player_data[user_id]['weapon'] = (card_value, suit)
@@ -199,7 +235,11 @@ class EquipButton(discord.ui.Button):
             player_data[user_id]['attack_mode'] = None
 
             await view.update_display(interaction)
-            await interaction.response.send_message("🗡️ Weapon equipped!", ephemeral=True, delete_after=3)
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("🗡️ Weapon equipped!", ephemeral=True, delete_after=3)
+            
+            else:
+                await interaction.response.defer()    
             return
 
 
@@ -224,6 +264,7 @@ class DungeonView(discord.ui.View):
             'attack_mode': None, # variable for setting attack mode  
             'potion_used': False, # variable for if you have used a potion this dungeon yet. 
             'current_weapon_power': None,  # tracks the current remaining weapon strength
+            'has_played_before': False, # variable for removing annoying popups if you are pro
 
             
         }
@@ -286,8 +327,10 @@ class DungeonView(discord.ui.View):
             
             
     def create_equip_buttons(self):
-   
+        # Remove old buttons (except main ones)
         self.clear_items()
+
+        # Re-add the main buttons (Deal, Damage, Heal, Flee, Fist)
         self.add_item(self.deal_button)
         # self.add_item(self.damage_button) REMOVED AS IT WAS FOR TESTING
         # self.add_item(self.heal_button) REMOVED AS IT WAS FOR TESTING
@@ -369,11 +412,14 @@ class DungeonView(discord.ui.View):
 
         # Normal Deal (must have exactly 1 card left)
         if player_data[self.user_id]['dungeon_started'] and len(player_data[self.user_id]['dungeon']) != 1:
-            await interaction.response.send_message(
-                "❌ You must have exactly 1 card left to deal!",
-                ephemeral=True,
-                delete_after=4
-            )
+            if not player_data[self.user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    "❌ You must have exactly 1 card left to deal!",
+                    ephemeral=True,
+                    delete_after=4
+                )
+            else:
+                await interaction.response.defer()
             return
 
         # If deck is empty, handle end-of-game logic
@@ -463,20 +509,30 @@ class DungeonView(discord.ui.View):
             return
 
         if not player_data[self.user_id]['can_flee']:
-            await interaction.response.send_message("❌ You can't flee again so soon!", ephemeral=True, delete_after=4)    # <-- Auto delete after 3 seconds
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("❌ You can't flee again so soon!", ephemeral=True, delete_after=4)    # <-- Auto delete after 3 seconds
+            else:
+                await interaction.response.defer()    
             return
+                
         
         #  Must have full dungeon to flee
         if len(player_data[self.user_id]['dungeon']) < 4:
-            await interaction.response.send_message(
-                "❌ You can't flee unless the dungeon is full (no cards used or equipped)!", ephemeral=True, delete_after=4
-            )
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    "❌ You can't flee unless the dungeon is full (no cards used or equipped)!", ephemeral=True, delete_after=4
+                )
+            else:
+                await interaction.response.defer()     
             return
         
         dungeon_cards = player_data[self.user_id]['dungeon']
 
         if not dungeon_cards:
-            await interaction.response.send_message("❌ You can't flee — there are no dungeon cards!", ephemeral=True)
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("❌ You can't flee — there are no dungeon cards!", ephemeral=True)
+            else:
+                await interaction.response.defer()     
             return
 
         # Shuffle dungeon cards and add to bottom
@@ -525,7 +581,10 @@ class FleeButton(discord.ui.Button):
             return
 
         if not player_data[user_id].get('can_flee', False):
-            await interaction.response.send_message("❌ You can't flee again so soon!", ephemeral=True, delete_after=4)
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("❌ You can't flee again so soon!", ephemeral=True, delete_after=4)
+            else:
+                await interaction.response.defer()  
             return
         
         if len(player_data[user_id]['dungeon']) < 4:
@@ -571,9 +630,13 @@ class AttackButton(discord.ui.Button):
         user_id = view.user_id
 
         player_data[user_id]['attack_mode'] = "fist"  # Set attack mode to fist
-
-        await interaction.response.send_message("👊 You are attacking with your fists!", ephemeral=True, delete_after=5)
-
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message("👊 You are attacking with your fists!", ephemeral=True, delete_after=5)
+        else:
+            await interaction.response.defer()  # silent
+            
+            
 # create sword attack button
 class WeaponAttackButton(discord.ui.Button):
      def __init__(self, style=discord.ButtonStyle.success):
@@ -584,20 +647,27 @@ class WeaponAttackButton(discord.ui.Button):
         user_id = view.user_id
 
         if player_data[user_id]['weapon'] is None:
-            await interaction.response.send_message(
-                "❌ You have no weapon equipped!",
-                ephemeral=True,
-                delete_after=4
-            )
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    "❌ You have no weapon equipped!",
+                    ephemeral=True,
+                    delete_after=4
+                )
+            else:
+                await interaction.response.defer()  # silent
             return
 
         player_data[user_id]['attack_mode'] = "weapon"  # Set special weapon attack mode
-
-        await interaction.response.send_message(
-            "🗡️ You are preparing to attack with your weapon!",
-            ephemeral=True,
-            delete_after=5
-        )
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message(
+                "🗡️ You are preparing to attack with your weapon!",
+                ephemeral=True,
+                delete_after=5
+            )
+        else:
+            await interaction.response.defer() # silent
+            
 # create potion button
 class PotionButton(discord.ui.Button):
     def __init__(self, style=discord.ButtonStyle.success):
@@ -609,12 +679,14 @@ class PotionButton(discord.ui.Button):
 
         player_data[user_id]['attack_mode'] = "potion"  # Set special potion mode
 
-        await interaction.response.send_message(
-            "💖 You are preparing to use a Potion!",
-            ephemeral=True,
-            delete_after=4
-        )
-
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message(
+                "💖 You are preparing to use a Potion!",
+                ephemeral=True,
+                delete_after=4
+            )
+        else:
+            await interaction.response.defer()
 
 class EquipButtonMain(discord.ui.Button):
     def __init__(self):
@@ -625,18 +697,40 @@ class EquipButtonMain(discord.ui.Button):
         user_id = view.user_id
 
         player_data[user_id]['attack_mode'] = "equip"  # New special mode
-
-        await interaction.response.send_message("🗡️ You are preparing to equip a weapon!", ephemeral=True, delete_after=4)
-
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message("🗡️ You are preparing to equip a weapon!", ephemeral=True, delete_after=4)
+        else:
+            await interaction.response.defer()
 
 # Start command
 @bot.command()
 async def start(ctx):
     if ctx.channel.name != "shuffle-and-slay":
-        await ctx.send("❌ This can only be used in #shuffle-and-slay!")
+        await ctx.send("❌ You can only use this command in #shuffle-and-slay!")
         return
 
     view = DungeonView(ctx.author.id)
+
+    # Ask if new player
+    await ctx.send(f"{ctx.author.mention} 👋 Have you played Shuffle and Slay before? (yes/no)")
+
+    def check(m):
+        return m.author.id == ctx.author.id and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
+
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=30)  # 30 seconds to respond
+        if msg.content.lower() == "yes":
+            player_data[ctx.author.id]['has_played_before'] = True
+            await ctx.send("✅ Welcome back! Skipping tutorials.")
+        else:
+            player_data[ctx.author.id]['has_played_before'] = False
+            await ctx.send("🆕 No problem! You'll see helpful popups.")
+    except Exception:
+        # If they don't respond in time, default to showing help
+        player_data[ctx.author.id]['has_played_before'] = False
+        await ctx.send("⌛ Timeout! Assuming you're a new player.")
+
     await ctx.send(f"Press Deal to start your dungeon run!\n❤️ Health: 20/20", view=view)
     
 # Rules command
@@ -653,7 +747,7 @@ async def rules(ctx):
             "- **Spades** ♠️ and **Clubs** ♣️ are monsters. Defeat them!\n"
             "- **Hearts** ♥️ are potions. Heal yourself! One per Dungeon or you discard them.\n"
             "- **Diamonds** ♦️ are weapons. Equip them!\n"
-            "- Use your **fists** 👊 if no weapon or if the monster is too strong.\n"
+            "- Use your **fists** 👊 if no **weapon** 🗡️ or if the monster is too strong.\n"
             "- You can only attack monsters **weaker** than your last kill.\n"
             "- Flee only when the dungeon is full! Cant Flee twice in a row!\n"
             "- Clear the dungeon to win! 🏆"
