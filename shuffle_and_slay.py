@@ -3,6 +3,7 @@ from discord.ext import commands
 import random
 
 
+
 # Bot setup
 intents = discord.Intents.default()
 intents.message_content = True
@@ -653,7 +654,225 @@ class DungeonView(discord.ui.View):
                 print(f"Victory message error: {e}")
             del player_data[self.user_id]
             return True
-        return False
+        return False 
+        
+        
+# create FleeButton
+class FleeButton(discord.ui.Button):
+    def __init__(self, style=discord.ButtonStyle.primary):
+        super().__init__(label="Flee", style=style)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: DungeonView = self.view
+        user_id = view.user_id
+
+        if interaction.channel.name != "shuffle-and-slay":
+            await interaction.response.send_message("❌ You can only flee in #shuffle-and-slay!", ephemeral=True, delete_after=4)
+            return
+
+        if interaction.user.id != user_id:
+            await interaction.response.send_message("❌ This is not your game!", ephemeral=True, delete_after=4)
+            return
+
+        if not player_data[user_id].get('can_flee', False):
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message("❌ You can't flee again so soon!", ephemeral=True, delete_after=4)
+            else:
+                await interaction.response.defer()  
+            return
+        
+        if len(player_data[user_id]['dungeon']) < 4:
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    "❌ You can't flee unless the dungeon is full!", ephemeral=True, delete_after=4)
+            else:
+                await interaction.response.defer()  
+            return
+
+
+        # Shuffle dungeon back into deck
+        dungeon_cards = player_data[user_id]['dungeon']
+        random.shuffle(dungeon_cards)
+        for card in reversed(dungeon_cards):
+            player_data[user_id]['deck'].insert(0, card)
+
+        # Clear dungeon and deal new cards
+        player_data[user_id]['dungeon'] = []
+        if len(player_data[user_id]['deck']) < 4:
+            await interaction.response.edit_message(
+                content="💀 **Game Over!** Not enough cards left to flee into the next room.",
+                view=None
+            )
+            del player_data[user_id]
+            return
+
+        new_hand = []
+        for _ in range(4):
+            card = player_data[user_id]['deck'].pop()
+            new_hand.append(card)
+
+        player_data[user_id]['dungeon'] = new_hand
+        player_data[user_id]['can_flee'] = False  # Can't flee back-to-back
+
+        await view.update_display(interaction)
+
+
+# create fist attack button
+class AttackButton(discord.ui.Button):
+    def __init__(self):
+        super().__init__(emoji="👊", style=discord.ButtonStyle.success, row=2)  # Row 2
+
+    async def callback(self, interaction: discord.Interaction):
+        view: DungeonView = self.view
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ This is not your game!", ephemeral=True, delete_after=4)
+            return
+        
+        
+        user_id = view.user_id
+        player_data[user_id]['attack_mode'] = "fist"  # Set attack mode to fist
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message("👊 You are attacking with your fists!", ephemeral=True, delete_after=4)
+        else:
+            await interaction.response.defer()  # silent
+            
+            
+# create sword attack button
+class WeaponAttackButton(discord.ui.Button):
+     def __init__(self, style=discord.ButtonStyle.success):
+        super().__init__(emoji="🗡️", style=style, row=2)
+
+     async def callback(self, interaction: discord.Interaction):
+        view: DungeonView = self.view
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ This is not your game!", ephemeral=True, delete_after=4)
+            return 
+        
+     
+        user_id = view.user_id
+        if player_data[user_id]['weapon'] is None:
+            if not player_data[user_id].get('has_played_before', False):
+                await interaction.response.send_message(
+                    "❌ You have no weapon equipped!",
+                    ephemeral=True,
+                    delete_after=4
+                )
+            else:
+                await interaction.response.defer()  # silent
+            return
+
+        player_data[user_id]['attack_mode'] = "weapon"  # Set special weapon attack mode
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message(
+                "🗡️ You are preparing to attack with your weapon!",
+                ephemeral=True,
+                delete_after=4
+            )
+        else:
+            await interaction.response.defer() # silent
+            
+# create potion button
+class PotionButton(discord.ui.Button):
+    def __init__(self, style=discord.ButtonStyle.success):
+        super().__init__(emoji="💖", style=style, row=2)  # Row 2
+
+    async def callback(self, interaction: discord.Interaction):
+        view: DungeonView = self.view
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ This is not your game!", ephemeral=True, delete_after=4)
+            return
+            
+            
+        user_id = view.user_id
+        player_data[user_id]['attack_mode'] = "potion"  # Set special potion mode
+
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message(
+                "💖 You are preparing to use a Potion!",
+                ephemeral=True,
+                delete_after=4
+            )
+        else:
+            await interaction.response.defer()
+
+class EquipButtonMain(discord.ui.Button):
+    def __init__(self):
+        super().__init__(label="Equip", style=discord.ButtonStyle.success, row=2)
+
+    async def callback(self, interaction: discord.Interaction):
+        view: DungeonView = self.view
+        if interaction.user.id != view.user_id:
+            await interaction.response.send_message("❌ This is not your game!", ephemeral=True, delete_after=4)
+            return
+            
+
+        user_id = view.user_id
+        player_data[user_id]['attack_mode'] = "equip"  # New special mode
+        
+        if not player_data[user_id].get('has_played_before', False):
+            await interaction.response.send_message("🗡️ You are preparing to equip a weapon!", ephemeral=True, delete_after=4)
+        else:
+            await interaction.response.defer()
+
+# Start command
+@bot.command()
+async def start(ctx):
+    if ctx.channel.name != "shuffle-and-slay":
+        await ctx.send("❌ You can only use this command in #shuffle-and-slay!", delete_after=4)
+        return
+
+    view = DungeonView(ctx.author.id)
+
+    # Ask if new player
+    await ctx.send(f"{ctx.author.mention} 👋 Have you played Shuffle and Slay before? (yes/no)")
+
+    def check(m):
+        return m.author.id == ctx.author.id and m.channel == ctx.channel and m.content.lower() in ["yes", "no"]
+
+    try:
+        msg = await bot.wait_for('message', check=check, timeout=30)  # 30 seconds to respond
+        if msg.content.lower() == "yes":
+            player_data[ctx.author.id]['has_played_before'] = True
+        #    await ctx.send("✅ Welcome back! Skipping tutorials.", delete_after=3)
+        else:
+            player_data[ctx.author.id]['has_played_before'] = False
+            await ctx.send("🆕 No problem! You'll see helpful popups.", delete_after=4)
+    except Exception:
+        # If they don't respond in time, default to showing help
+        player_data[ctx.author.id]['has_played_before'] = False
+        await ctx.send("⌛ Timeout! Assuming you're a new player.")
+
+    await ctx.send(f"Press Deal to start your dungeon run!\n❤️ Health: 20/20", view=view)
+    
+# Rules command
+@bot.command()
+async def rules(ctx):
+    if ctx.channel.name != "shuffle-and-slay":
+        await ctx.send("❌ You can only use this command in #shuffle-and-slay!", delete_after=4)
+        return
+
+    embed = discord.Embed(
+        title="🏰 Dungeon Rules",
+        description=(
+            "- Draw 4 cards at the start. This is your Dungeon.\n"
+            "- **Spades** ♠️ and **Clubs** ♣️ are monsters. Defeat them!\n"
+            "- **Hearts** ♥️ are potions. Heal yourself! One per Dungeon or you discard them.\n"
+            "- **Diamonds** ♦️ are weapons. Equip them!\n"
+            "- Use your **fists** 👊 if no **weapon** 🗡️ or if the monster is too strong.\n"
+            "- You can only attack monsters **weaker** than your last kill.\n"
+            "- Flee only when the dungeon is full! Cant Flee twice in a row!\n"
+            "- Clear all the dungeons to win! 🏆"
+        ),
+        color=discord.Color.green()  # You can pick different colors here
+    )
+
+    embed.set_thumbnail(url="https://i.postimg.cc/RhQVdPth/Bot-Image.png")  # <-- Set a thumbnail image
+    embed.set_footer(text="Good luck in the dungeon, adventurer!")  # <-- Adds footer text
+    
+    await ctx.send(embed=embed)
+
 
 # Run the bot
 try:
