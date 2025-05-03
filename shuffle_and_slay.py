@@ -640,6 +640,8 @@ class DungeonView(discord.ui.View):
         player_data[self.user_id]['dungeon'] = new_hand
 
         player_data[self.user_id]['can_flee'] = False  # <-- Prevent back-to-back fleeing!
+        player_data[self.user_id]['potion_used'] = False # resets potion used to false
+
 
         await self.update_display(interaction)
         
